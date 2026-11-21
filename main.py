@@ -601,19 +601,29 @@ def build_page():
 def main():
     build_page()
     data = png_bytes(downsample())
-    with open('entry.png', 'wb') as f:
-        f.write(data)
-    out_dir = os.environ.get('MAKEFUN_OUTPUT_DIR')
-    if out_dir:
+    # The grading container mounts this repository read-only (the program's
+    # working directory) and expects the image at /output/entry.png;
+    # MAKEFUN_OUTPUT_DIR names that directory in local runs instead.
+    # Write to the output directory first, creating it if needed.  A
+    # courtesy copy in the working directory is handy in a writable local
+    # checkout, but failing to write it must never fail the run.
+    out_dir = os.environ.get('MAKEFUN_OUTPUT_DIR') or '/output'
+    written = False
+    try:
         os.makedirs(out_dir, exist_ok=True)
         with open(os.path.join(out_dir, 'entry.png'), 'wb') as f:
             f.write(data)
-    elif os.path.isdir('/output'):
-        try:
-            with open('/output/entry.png', 'wb') as f:
-                f.write(data)
-        except OSError:
-            pass
+        written = True
+    except OSError:
+        pass
+    try:
+        with open('entry.png', 'wb') as f:
+            f.write(data)
+        written = True
+    except OSError:
+        pass
+    if not written:
+        raise SystemExit('error: could not write entry.png anywhere')
     print('entry.png written:', len(data), 'bytes')
 
 
